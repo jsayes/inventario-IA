@@ -18,3 +18,177 @@
 #  Decide y documenta en DECISIONES.md: maxReceiveCount, batch size,
 #  visibility timeout, retención de la DLQ.
 # ============================================================================
+
+########################################
+# DLQ
+########################################
+
+resource "aws_sqs_queue" "dlq" {
+  name = "${var.nombre}-dlq"
+
+  message_retention_seconds = 1209600
+
+  tags = var.tags
+}
+
+########################################
+# COLA PRINCIPAL
+########################################
+
+resource "aws_sqs_queue" "principal" {
+  name = "${var.nombre}-queue"
+
+  visibility_timeout_seconds = 180
+
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.dlq.arn
+    maxReceiveCount     = 5
+  })
+
+  tags = var.tags
+}
+
+########################################
+# PERMITIR SOLO AL BUCKET LANDING
+########################################
+
+resource "aws_sqs_queue_policy" "landing" {
+  queue_url = aws_sqs_queue.principal.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "AllowLandingBucketOnly"
+        Effect = "Allow"
+
+        Principal = {
+          Service = "s3.amazonaws.com"
+        }
+
+        Action = "sqs:SendMessage"
+
+        Resource = aws_sqs_queue.principal.arn
+
+        Condition = {
+          ArnEquals = {
+            "aws:SourceArn" = var.bucket_landing_arn
+          }
+        }
+      }
+    ]
+  })
+}
+
+########################################
+# NOTIFICACION S3 -> SQS
+########################################
+
+resource "aws_s3_bucket_notification" "landing" {
+  bucket = var.bucket_landing_id
+
+  queue {
+    queue_arn = aws_sqs_queue.principal.arn
+
+    events = [
+      "s3:ObjectCreated:*"
+    ]
+
+    filter_prefix = "ingesta/"
+    filter_suffix = ".csv"
+  }
+
+  depends_on = [
+    aws_sqs_queue_policy.landing
+  ]
+}
+
+########################################
+# LAMBDA INGESTA
+########################################
+
+module "lambda_ingesta" {
+
+  source = "../lambda_function"
+
+  nombre = var.nombre
+
+  source_dir = "${path.root}/../../services/ingesta"
+
+  runtime = "python3.12"
+
+  handler = "app.lambda_handler"
+
+  timeout = 60
+
+  memoria_mb = 256
+
+  tags = var.tags
+
+  politica_json = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+
+      {
+        Sid    = "ConsumeQueue"
+        Effect = "Allow"
+
+        Action = [
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ChangeMessageVisibility"
+        ]
+
+        Resource = aws_sqs_queue.principal.arn
+      },
+
+      {
+        Sid    = "ReadLandingBucket"
+        Effect = "Allow"
+
+        Action = [
+          "s3:GetObject"
+        ]
+
+        Resource = [
+          "${var.bucket_landing_arn}/*"
+        ]
+      },
+
+      {
+        Sid    = "WriteLogs"
+        Effect = "Allow"
+
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+########################################
+# SQS -> LAMBDA
+########################################
+
+resource "aws_lambda_event_source_mapping" "ingesta" {
+
+  event_source_arn = aws_sqs_queue.principal.arn
+
+  function_name = module.lambda_ingesta.function_arn
+
+  batch_size = 10
+
+  enabled = true
+
+  function_response_types = [
+    "ReportBatchItemFailures"
+  ]
+}
