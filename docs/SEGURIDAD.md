@@ -11,7 +11,7 @@ debido que las conexiones de BD debe tener seguridad por los atacantes.
 
 2. Se reviso el acceso público.
 
-4. Por ser una lambda, se debe revisar bien las politicas.
+4. Por ser una lambda, se debe revisar bien las politicas
 
 ## 2. Hallazgos
 
