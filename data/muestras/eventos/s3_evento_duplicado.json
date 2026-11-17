@@ -1,0 +1,19 @@
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "eventName": "ObjectCreated:Put",
+      "eventTime": "2026-03-02T08:00:12.000Z",
+      "s3": {
+        "bucket": { "name": "inv-local-landing" },
+        "object": {
+          "key": "ventas/intradia/ventas_20260302_0800.csv",
+          "size": 1351,
+          "eTag": "d41d8cd98f00b204e9800998ecf8427e",
+          "sequencer": "0065E3B1C4A1B2C3D4"
+        }
+      }
+    }
+  ]
+}

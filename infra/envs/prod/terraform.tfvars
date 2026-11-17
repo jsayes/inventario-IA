@@ -1,0 +1,5 @@
+region      = "us-east-1"
+entorno     = "prod"
+db_usuario  = "etl_user"
+db_password = "Inventario2026!"
+db_clase    = "db.t4g.medium"

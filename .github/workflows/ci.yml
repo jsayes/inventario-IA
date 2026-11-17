@@ -1,0 +1,34 @@
+# ============================================================================
+#  CI. ✅ Entregado: job de pruebas unitarias.
+#  ⬜ Tu entregable (ENUNCIADO.md, sección 3.5).
+# ============================================================================
+name: ci
+
+on:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  # ⬜ terraform:
+  #   fmt -check, validate de local y prod, tflint.
+  #
+  # ⬜ seguridad:
+  #   checkov sobre infra/. Decide si bloquea el PR o solo reporta, y
+  #   justifícalo.
+  #
+  # ⬜ plan-local:
+  #   levanta LocalStack 4.12 como service container y corre terraform plan
+  #   (o apply + smoke test) del entorno local.
+  #
+  # ⬜ despliegue a prod (NO se ejecuta en esta prueba):
+  #   deja el workflow escrito, sin llaves de acceso. Autenticación por OIDC
+  #   con un rol de IAM, plan en el PR y apply en main con aprobación manual.

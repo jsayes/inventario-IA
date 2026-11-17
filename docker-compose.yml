@@ -1,0 +1,50 @@
+# ============================================================================
+#  LocalStack (emulador de AWS) + contenedor de herramientas.
+#  No necesitas cuenta de AWS ni instalar Terraform en tu máquina.
+#
+#  La imagen de LocalStack está FIJADA en 4.12, la última edición community
+#  que arranca sin token. No la cambies a :latest (las versiones nuevas
+#  exigen cuenta y token de LocalStack).
+# ============================================================================
+name: prueba-cloud
+
+services:
+  localstack:
+    image: localstack/localstack:4.12
+    container_name: cloud_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,sqs,sns,lambda,dynamodb,apigateway,iam,sts,logs,cloudwatch,secretsmanager,ssm
+      LAMBDA_DOCKER_NETWORK: prueba-cloud_default
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health | grep -q '\"s3\"'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  tools:
+    build:
+      context: .
+      dockerfile: Dockerfile.tools
+    container_name: cloud_tools
+    working_dir: /work
+    volumes:
+      - .:/work
+      - tf-plugins:/root/.terraform.d/plugin-cache
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ENDPOINT_URL: http://localstack:4566
+      TF_PLUGIN_CACHE_DIR: /root/.terraform.d/plugin-cache
+    depends_on:
+      localstack:
+        condition: service_healthy
+    profiles: ["tools"]
+
+volumes:
+  tf-plugins:

@@ -1,0 +1,25 @@
+# Herramientas fijadas a versión para que todos los candidatos usen lo mismo.
+FROM python:3.12-slim
+
+ARG TARGETARCH=amd64
+ARG TERRAFORM_VERSION=1.9.8
+ARG TFLINT_VERSION=0.53.0
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl unzip git make jq \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL -o /tmp/tf.zip \
+      "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${TARGETARCH}.zip" \
+ && unzip /tmp/tf.zip -d /usr/local/bin && rm /tmp/tf.zip \
+ && curl -fsSL -o /tmp/tflint.zip \
+      "https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_${TARGETARCH}.zip" \
+ && unzip /tmp/tflint.zip -d /usr/local/bin && rm /tmp/tflint.zip
+
+COPY requirements-dev.txt /tmp/requirements-dev.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-dev.txt
+
+# LocalStack se alcanza como http://localstack:4566: S3 debe usar path-style.
+RUN mkdir -p /root/.aws && printf '[default]\nregion = us-east-1\ns3 =\n    addressing_style = path\n' > /root/.aws/config
+
+WORKDIR /work
