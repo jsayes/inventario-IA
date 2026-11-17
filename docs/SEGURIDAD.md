@@ -11,6 +11,8 @@ debido que las conexiones de BD debe tener seguridad por los atacantes.
 
 2. Se reviso el acceso público.
 
+4. Por ser una lambda, se debe revisar bien las politicas.
+
 ## 2. Hallazgos
 
 Ordenados por severidad.
@@ -49,6 +51,18 @@ resource "aws_s3_bucket" "this" {
 
 No existe. aws_s3_bucket_public_access_block
 
+3. Riesgo: Tiene politicas de administrador, por lo que se debe limitar.
+
+policy = coalesce(var.politica_json, jsonencode({
+  Version = "2012-10-17"
+  Statement = [{
+    Effect   = "Allow"
+    Action   = "*"
+    Resource = "*"
+  }]
+}))
+
+Adicional se agrego cloudwatch para tener logs y revisa cualquier incidencia que se presente
 
 ## 3. Lo que no corregí
 
@@ -56,9 +70,6 @@ No existe. aws_s3_bucket_public_access_block
 |---|---|---|---|
 | | | | |
 
-1. 
-
-2. 
 
 ## 4. Si esto ya estuviera en producción
 
@@ -67,3 +78,5 @@ Uno de los hallazgos implica que algo pudo haberse expuesto. ¿Qué harías adem
 1. Es crítica ya que los atacantes pueden utilizar esta vulnerabilidad para obtener información sensible.
 
 2. Una persona puede eliminar el recurso y borrar la informaciony sin el Public Access Block puede exponer de forma accidental los datos.
+
+3. Tiene muchos privilegios la Lambda, por lo que personas externas pueden leer la información y realizar acciones a la Lambda.

@@ -31,8 +31,8 @@ resource "aws_iam_role_policy" "permisos" {
     Version = "2012-10-17"
     Statement = [{
       Effect   = "Allow"
-      Action   = "*"
-      Resource = "*"
+      Action   = "s3:GetObject"
+      Resource = "arn:aws:s3:::mi-bucket/*"
     }]
   }))
 }
@@ -46,6 +46,19 @@ resource "aws_lambda_function" "this" {
   source_code_hash = data.archive_file.zip.output_base64sha256
   timeout          = var.timeout
   memory_size      = var.memoria_mb
+
+resource "aws_secretsmanager_secret" "db" {
+  name = "db-password"
+}
+
+resource "aws_kms_key" "lambda" {
+  description = "Lambda Environment Encryption"
+}
+
+resource "aws_cloudwatch_log_group" "lambda" {
+  name              = "/aws/lambda/${var.nombre}"
+  retention_in_days = 30
+}
 
   environment {
     variables = var.variables_entorno
